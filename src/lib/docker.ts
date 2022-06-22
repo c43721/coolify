@@ -89,11 +89,27 @@ export async function buildCacheImageWithCargo(data, imageForBuild) {
 		installCommand,
 		buildCommand,
 		debug,
-		secrets
+		secrets,
+		pullmergeRequestId
 	} = data;
 	const Dockerfile: Array<string> = [];
 	Dockerfile.push(`FROM ${imageForBuild} as planner-${applicationId}`);
 	Dockerfile.push(`LABEL coolify.buildId=${buildId}`);
+	if (secrets.length > 0) {
+		secrets.forEach((secret) => {
+			if (secret.isBuildSecret) {
+				if (pullmergeRequestId) {
+					if (secret.isPRMRSecret) {
+						Dockerfile.push(`ARG ${secret.name}=${secret.value}`);
+					}
+				} else {
+					if (!secret.isPRMRSecret) {
+						Dockerfile.push(`ARG ${secret.name}=${secret.value}`);
+					}
+				}
+			}
+		});
+	}
 	Dockerfile.push('WORKDIR /app');
 	Dockerfile.push('RUN cargo install cargo-chef');
 	Dockerfile.push('COPY . .');

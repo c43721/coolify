@@ -2,7 +2,7 @@ import { buildImage } from '$lib/docker';
 import { promises as fs } from 'fs';
 
 const createDockerfile = async (data, image, htaccessFound): Promise<void> => {
-	const { workdir, baseDirectory, buildId, port } = data;
+	const { workdir, baseDirectory, buildId, port, secrets, pullmergeRequestId } = data;
 	const Dockerfile: Array<string> = [];
 	let composerFound = false;
 	try {
@@ -12,6 +12,21 @@ const createDockerfile = async (data, image, htaccessFound): Promise<void> => {
 
 	Dockerfile.push(`FROM ${image}`);
 	Dockerfile.push(`LABEL coolify.buildId=${buildId}`);
+	if (secrets.length > 0) {
+		secrets.forEach((secret) => {
+			if (secret.isBuildSecret) {
+				if (pullmergeRequestId) {
+					if (secret.isPRMRSecret) {
+						Dockerfile.push(`ARG ${secret.name}=${secret.value}`);
+					}
+				} else {
+					if (!secret.isPRMRSecret) {
+						Dockerfile.push(`ARG ${secret.name}=${secret.value}`);
+					}
+				}
+			}
+		});
+	}
 	Dockerfile.push('WORKDIR /app');
 	Dockerfile.push(`COPY .${baseDirectory || ''} /app`);
 	if (htaccessFound) {
